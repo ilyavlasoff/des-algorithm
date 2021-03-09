@@ -1,0 +1,9 @@
+C:\Users\iljav\source\repos\des_algorithm\des_algorithm\bin\Debug\des_algorithm.exe.config
+C:\Users\iljav\source\repos\des_algorithm\des_algorithm\bin\Debug\des_algorithm.exe
+C:\Users\iljav\source\repos\des_algorithm\des_algorithm\bin\Debug\des_algorithm.pdb
+C:\Users\iljav\source\repos\des_algorithm\des_algorithm\obj\Debug\des_algorithm.csprojAssemblyReference.cache
+C:\Users\iljav\source\repos\des_algorithm\des_algorithm\obj\Debug\des_algorithm.Form1.resources
+C:\Users\iljav\source\repos\des_algorithm\des_algorithm\obj\Debug\des_algorithm.Properties.Resources.resources
+C:\Users\iljav\source\repos\des_algorithm\des_algorithm\obj\Debug\des_algorithm.csproj.GenerateResource.cache
+C:\Users\iljav\source\repos\des_algorithm\des_algorithm\obj\Debug\des_algorithm.exe
+C:\Users\iljav\source\repos\des_algorithm\des_algorithm\obj\Debug\des_algorithm.pdb
