@@ -8,16 +8,17 @@ namespace des_algorithm
 {
     class DesAlgorithm
     {
-        private List<List<byte>> keys;
+        const int ulongMaxLength = 64;
+        private List<ulong> keys;
+        public enum Operation { encrypt, decrypt }
 
-        public DesAlgorithm()
+        public DesAlgorithm(bool useCustomKey, ulong customKey = 0)
         {
-            keys = GenerateKeys();
+            keys = GenerateKeys(useCustomKey, customKey);
         }
 
-        public void Encrypt(String dataString)
+        public List<Byte> Des(List<Byte> byteData, Operation operation)
         {
-            List<Byte> byteData = ConvertStringToByteList(dataString);
             if (byteData.Count % 8 != 0)
             {
                 int addBytesCount = 8 - (byteData.Count % 8);
@@ -27,240 +28,229 @@ namespace des_algorithm
                 }
             }
 
-            int chunks64count = byteData.Count / 8;
-            List<List<byte>> transposedDataChunks = new List<List<byte>>();
-            for(int i=0; i!=chunks64count; ++i)
+            List<ulong> transposedDataChunks = new List<ulong>();
+            for (var i =0; i!= byteData.Count / 8; ++i)
             {
-                List<byte> chunkRange = byteData.GetRange(i, 8);
-                transposedDataChunks.Add(TransformByteListWithRule(chunkRange, DesAlgorithmConstants.PTranspositionMatrix));
+                ulong u64chunk = 0;
+                List<Byte> chunk = byteData.GetRange(i * 8, 8);
+                for (var j =0; j!= chunk.Count; ++j)
+                {
+                    u64chunk = u64chunk | (ulong)chunk[j] << (56 - j * 8);
+                }
+                transposedDataChunks.Add(u64chunk);
             }
+            
+            List<ulong> result;
+            if (operation == Operation.encrypt)
+            {
+               result = DriveDes(transposedDataChunks, this.keys, false);
+            }
+            else
+            {
+                List<ulong> reversedKeys = this.keys;
+                reversedKeys.Reverse();
+                result = DriveDes(transposedDataChunks, reversedKeys, true);
+            }
+      
+            List<byte> encodedBytes = new List<byte>();
+            foreach (ulong value in result)
+            {
+                List<byte> byteBuffer = new List<byte>();
+                for (int i = 0; i != 8; ++i)
+                {
+                    byteBuffer.Add((byte)(value >> (i * 8) & 0xFF));
+                }
+                byteBuffer.Reverse();
+                encodedBytes.AddRange(byteBuffer);
+            }
+
+            return encodedBytes;
         }
 
-        private static List<byte> TransformByteListWithRule(List<byte> data, List<int> transposeRule, int transposedDataSize = 0)
+        private static List<ulong> DriveDes(List<ulong> data, List<ulong> keys, bool reverse)
         {
-            if (transposeRule.Max() > 8 * data.Count)
+            List<ulong> encryptedData = new List<ulong>();
+
+            for (int i = 0; i != data.Count; ++i)
+            {
+                ulong startPermutedValue = TransformByteListWithRule(data[i], 63, DesAlgorithmConstants.PTranspositionMatrix, 63);
+                ulong desEncryptedValue = DesFunction(startPermutedValue, keys, reverse);
+                ulong endPermutedValue = TransformByteListWithRule(desEncryptedValue, 63, DesAlgorithmConstants.P1TranspositionMatrix, 63);
+                encryptedData.Add(endPermutedValue);
+            }
+
+            return encryptedData;
+        }
+
+        private static ulong TransformByteListWithRule(ulong data, int startSourceShift, List<int> transposeRule, int startResultShift)
+        {
+            if (transposeRule.Max() > ulongMaxLength)
             {
                 throw new Exception("Wrong transpose rule");
             }
 
-            if (transposedDataSize <= 0)
-            {
-                transposedDataSize = data.Count;
-            }
-            List<byte> transposedData = new List<byte>();
-            transposedData.AddRange(Enumerable.Repeat((byte)0x00, transposedDataSize).ToList<byte>());
+            ulong transposedData = 0;
 
             for(int i =0; i!= transposeRule.Count; ++i)
             {
-                int bitNo = transposeRule[i] - 1;
-                int byteNo = bitNo / 8;
-                byte startShiftValue = (byte)(8 - bitNo % 8);
-                byte endShiftValue = (byte)(8 - i % 8);
-                byte targetByte = (byte)(i / 8);
+                ulong startSourceBit = (ulong)0x01 << startSourceShift;
 
-                if(byteNo >= data.Count)
+                ulong coeff = (startSourceBit >> (transposeRule[i] - 1)) & data;
+
+                int shift = (startResultShift - i) - (startSourceShift - (transposeRule[i] - 1));
+                if (shift == 0) 
                 {
-                    throw new Exception("Data length is small");
+                    transposedData = coeff | transposedData;
+                }
+                else if (shift < 0)
+                {
+                    transposedData = (coeff >> -shift) | transposedData;
+                }
+                else
+                {
+                    transposedData = (coeff << shift) | transposedData;
                 }
 
-                byte shiftedData = GetShiftedBitValue(data[byteNo], startShiftValue, endShiftValue);
-
-                transposedData[targetByte] = (byte)(transposedData[targetByte] | shiftedData);
             }
 
             return transposedData;
         }
 
-        private static byte GetShiftedBitValue(byte data, byte startShift, byte finalShift)
+        private static ulong DesFunction(ulong data, List<ulong> roundKeys, bool reverse)
         {
-            if (finalShift > startShift)
-            {
-                data = unchecked((byte)((data << (finalShift - startShift)) & 0xFF));
-            } 
-            else if (finalShift < startShift)
-            {
-                data = unchecked((byte)((data >> (startShift - finalShift)) & 0xFF));
-            }
-
-            byte bitMask = (byte)((0x01 << finalShift) & 0xFF);
-            data = (byte)(data & bitMask); 
-
-            return data;
-        }
-
-        private static List<byte> CircularShiftLeft(List<byte> data, byte shift, int endShiftPass)
-        {
-            if (shift > 7)
-            {
-                throw new Exception("Too big shift value for single byte");
-            }
-
-            // учет нулевых битов в конце
-
-            List<byte> shiftedData = new List<byte>();
-            shiftedData.AddRange(Enumerable.Repeat((byte)0x00, data.Count).ToList<byte>());
-
-            for (int i=0; i!= shiftedData.Count; ++i)
-            {
-                int previousCycleByte = i != shiftedData.Count - 1 ? i + 1 : 0;
-                shiftedData[i] = (byte)(data[i] << shift | previousCycleByte >> (8 - shift));
-            }
-
-            return shiftedData;
-        }
-
-        private List<Byte> ConvertStringToByteList(String sourceString)
-        {
-            return Encoding.Unicode.GetBytes(sourceString).ToList<Byte>();
-        }
-
-        private void DesFunction(List<byte> data, List<List<byte>> roundKeys)
-        {
-            if (data.Count != 8)
-            {
-                throw new Exception("Data length is wrong");
-            }
+            ulong leftPart = data >> 32;
+            ulong rightPart = data & (ulong.MaxValue >> 32);
 
             for (int i = 0; i != roundKeys.Count; ++i)
             {
-                List<byte> leftPart = data.GetRange(0, 4);
-                List<byte> rightPart = data.GetRange(4, 4);
-                List<byte> encryptedRightPart = PerformEncryptionRound(rightPart, roundKeys[i]);
-
-                for(var j = 0; j!= encryptedRightPart.Count; ++j)
+                if(reverse)
                 {
-                    leftPart[j] = (byte)(leftPart[j] ^ encryptedRightPart[j]);
+                    rightPart = rightPart ^ PerformEncryptionRound(leftPart, roundKeys[i]);
+                } 
+                else
+                {
+                    leftPart = leftPart ^ PerformEncryptionRound(rightPart, roundKeys[i]);
                 }
-
-                List<byte> roundResult = new List<byte>();
-                roundResult.AddRange(rightPart);
-                roundResult.AddRange(leftPart);
-                data = roundResult.Select(b => b).ToList<byte>();
+                
+                ulong tmp = rightPart;
+                rightPart = leftPart;
+                leftPart = tmp;
             }
+
+            return leftPart << 32 | rightPart;
         }
 
-        private List<byte> PerformEncryptionRound(List<byte> data, List<byte> key)
+        private static ulong PExtensionBox(ulong data)
         {
-            if (data.Count != 4)
+            ulong pExtendedValue = 0;
+            int maskShift = 27;
+            for (var i = 0; i != 8; ++i)
             {
-                throw new Exception("Wrong key length");
-            }
-
-            const int extendedKeysCount = 8;
-            List<byte> pBoxValues = new List<byte>();
-
-            int readingByteNo = 0;
-            int shift = 6;
-            byte previuosReadByte = (byte)((data[extendedKeysCount - 1] << 1 | data[0] >> 7) & 0x03);
-            for (int i=0; i!= extendedKeysCount; ++i)
-            {
-                shift -= 4;
-                if (shift > 0)
+                ulong mask = (ulong)0x3F;
+                if (maskShift > 0)
                 {
-                    previuosReadByte = (byte)((data[readingByteNo] >> shift | previuosReadByte << 4) & 0x3F);
+                    mask = mask << maskShift;
                 }
                 else
                 {
-                    int carryByte = readingByteNo + 1;
-                    if (readingByteNo + 1 == extendedKeysCount)
-                    {
-                        carryByte = 0;
-                    }
-                    previuosReadByte = (byte)(((data[readingByteNo] << (-shift) & data[carryByte] >> (8 - shift)) | previuosReadByte << 4) & 0x3F);
-                    readingByteNo++;
+                    mask = mask >> -maskShift;
                 }
-                pBoxValues.Add(previuosReadByte);
+                mask = mask & 0xFFFFFFFF;
+                ulong pBoxRow = data & mask;
+                int extendedValueShift = 42 - (i * 6);
+                int shift = extendedValueShift - maskShift;
+
+                if (shift == 0)
+                {
+                    pExtendedValue = pExtendedValue | pBoxRow;
+                }
+                if (shift > 0)
+                {
+                    pExtendedValue = pExtendedValue | pBoxRow << shift;
+                }
+                else
+                {
+                    pExtendedValue = pExtendedValue | pBoxRow >> -shift;
+                }
+
+                maskShift -= 4;
             }
 
-            // 48 бит 
+            pExtendedValue = pExtendedValue | (pExtendedValue >> 46) | ((pExtendedValue << 46) & 0xFFFFFFFFFFFF);
 
-            if (pBoxValues.Count != key.Count)
-            {
-                throw new Exception("Wrong data length");
-            }
-
-            for(int i=0; i!= pBoxValues.Count; ++i)
-            {
-                pBoxValues[i] = (byte)(pBoxValues[i] ^ key[i]);
-            }
-
-            List<byte> sBoxedByteList = new List<byte>();
-            sBoxedByteList.AddRange(Enumerable.Repeat((byte)0x00, 4));
-
-            const int vectorsCount = 8;
-
-            // в 64 бита
-
-            for(int i = 0; i!= vectorsCount; ++i)
-            {
-                int targetByteNo = i / 2;
-                int targetBitShift = 4 * (1 - i % 2);
-                
-                byte sBoxRow = (byte)((pBoxValues[i] << 1 | pBoxValues[i] >> 7) & 0x03);
-                byte sBoxColumn = (byte)((pBoxValues[i] >> 1) & 0xF);
-
-                byte sBoxData = (byte)DesAlgorithmConstants.SBox[i][sBoxRow][sBoxColumn];
-                sBoxedByteList[targetByteNo] = (byte)(sBoxedByteList[targetByteNo] & (sBoxData << targetBitShift));
-
-            }
-
-            return sBoxedByteList;
+            return pExtendedValue;
+            //return TransformByteListWithRule(data, 31, DesAlgorithmConstants.PExtension, 47);
         }
 
-        private static List<List<byte>> GenerateKeys()
+        private static ulong SBox(ulong data)
         {
-            Random rnd = new Random();
-            Byte[] bArray = new Byte[64];
-            rnd.NextBytes(bArray);
-            List<byte> keySource = bArray.ToList<byte>();
+            ulong SBoxedValue = 0;
+            for(var i = 0; i!= 8; ++i)
+            {
+                int shift = 42 - i * 6;
+                ulong sBoxData = (((ulong)0x3F << shift) & data) >> shift;
+                uint sBoxRowNo = (uint)(((sBoxData >> 4) & 0x02) | (sBoxData & (ulong)0x01));
+                uint sBoxColNo = (uint)((sBoxData >> 1) & 0x0F);
+                ulong SBoxRes = Convert.ToUInt64(DesAlgorithmConstants.SBox[i][(int)sBoxRowNo][(int)sBoxColNo]) & 0x0F;
 
-            const int halfKeyLength = 28;
-            const int fullKeyByteLength = 8;
-            int shiftBlockPass = 8 - halfKeyLength % 8;
+                SBoxedValue = SBoxedValue | (SBoxRes << (28 - i * 4));
+            }
 
-            List<byte> c0KeyPart = TransformByteListWithRule(keySource, DesAlgorithmConstants.ExtendedKeyReplacement[0], halfKeyLength);
-            List<byte> d0KeyPart = TransformByteListWithRule(keySource, DesAlgorithmConstants.ExtendedKeyReplacement[1], halfKeyLength);
+            return SBoxedValue;
+        }
+
+        private static ulong PerformEncryptionRound(ulong data, ulong key)
+        {
+            ulong pExtendedData = PExtensionBox(data);
+            ulong pXExtendedData = pExtendedData ^ key;
+            ulong SBoxData = SBox(pXExtendedData);
+            return TransformByteListWithRule(SBoxData, 31, DesAlgorithmConstants.PBox, 31);
+        }
+
+        private static List<ulong> GenerateKeys(bool useCustomKeys, ulong customKey = 0)
+        {
+            ulong salt;
+            if(useCustomKeys)
+            {
+                salt = customKey;
+            }
+            else
+            {
+                Random rnd = new Random();
+                salt = (ulong)rnd.Next();
+            }
+           
+            ulong c0KeyPart = TransformByteListWithRule(salt, 63, DesAlgorithmConstants.ExtendedKeyReplacement[0], 27);
+            ulong d0KeyPart = TransformByteListWithRule(salt, 63, DesAlgorithmConstants.ExtendedKeyReplacement[1], 27);
 
             const int totalRoundCount = 16;
             List<int> requiresHalfShifting = new List<int> { 0, 1, 8, 15 };
 
-            List<List<byte>> roundKeys = new List<List<byte>>();
-            for(byte i = 0, totalShift = 0; i!= totalRoundCount; ++i)
+            List<ulong> roundKeys = new List<ulong>();
+            for(int i = 0; i!= totalRoundCount; ++i)
             {
-                if (requiresHalfShifting.Contains(i))
-                {
-                    totalShift += 1;
-                } 
-                else
-                {
-                    totalShift += 2;
-                }
+                int totalShift = requiresHalfShifting.Contains(i) ? 1 : 2;
 
-                List<byte> c0ShiftedKeyPart = CircularShiftLeft(c0KeyPart, totalShift, shiftBlockPass);
-                List<byte> d0ShiftedKeyPart = CircularShiftLeft(d0KeyPart, totalShift, shiftBlockPass);
+                c0KeyPart = CircularShiftLeft(c0KeyPart, totalShift, 27);
+                d0KeyPart = CircularShiftLeft(d0KeyPart, totalShift, 27);
 
-                List<byte> rawRoundKey = new List<byte>(fullKeyByteLength);
-                int notShiftedBytesCount = halfKeyLength / 8;
-                for (int j =0; j!= notShiftedBytesCount; ++j)
-                {
-                    rawRoundKey[j] = c0ShiftedKeyPart[i];
-                }
+                ulong raw56Key = c0KeyPart << 28 | d0KeyPart;
 
-                rawRoundKey[notShiftedBytesCount] = (byte)(c0ShiftedKeyPart[notShiftedBytesCount] | d0ShiftedKeyPart[0] << 4);
+                ulong roundKey = TransformByteListWithRule(raw56Key, 55, DesAlgorithmConstants.KeyCompressionReplacement, 47);
 
-                for (int j = 0; j != d0ShiftedKeyPart.Count - 1; ++j)
-                {
-                    rawRoundKey[notShiftedBytesCount + j] = (byte)(d0ShiftedKeyPart[j] << 4 | d0ShiftedKeyPart[j + 1] >> 7);
-                }
-
-                rawRoundKey[fullKeyByteLength - 1] = (byte)(d0ShiftedKeyPart[d0ShiftedKeyPart.Count - 1] << 4);
-
-                List<byte> compressedRawKey = TransformByteListWithRule(rawRoundKey, DesAlgorithmConstants.KeyCompressionReplacement);
-
-                roundKeys.Add(compressedRawKey);
+                roundKeys.Add(roundKey);
             }
 
             return roundKeys;
+        }
+
+        private static ulong CircularShiftLeft(ulong data, int shiftAmount, int borderValue)
+        {
+            if (shiftAmount >= borderValue)
+            {
+                throw new Exception("Too big shift value"); 
+            }
+            return (data << shiftAmount | data >> (borderValue - shiftAmount + 1)) & (ulong.MaxValue >> (64 - borderValue - 1));
         }
     }
 }

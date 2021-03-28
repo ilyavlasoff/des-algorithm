@@ -33,15 +33,17 @@
             this.manualKeyGenerationRadio = new System.Windows.Forms.RadioButton();
             this.keyInputTextBox = new System.Windows.Forms.TextBox();
             this.sourceDataTextBox = new System.Windows.Forms.RichTextBox();
-            this.resultTextBox = new System.Windows.Forms.RichTextBox();
+            this.encryptedTextBox = new System.Windows.Forms.RichTextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
-            this.decryptButton = new System.Windows.Forms.Button();
+            this.button1 = new System.Windows.Forms.Button();
+            this.label3 = new System.Windows.Forms.Label();
+            this.decryptedTextBox = new System.Windows.Forms.RichTextBox();
             this.SuspendLayout();
             // 
             // encryptButton
             // 
-            this.encryptButton.Location = new System.Drawing.Point(279, 63);
+            this.encryptButton.Location = new System.Drawing.Point(383, 158);
             this.encryptButton.Name = "encryptButton";
             this.encryptButton.Size = new System.Drawing.Size(97, 23);
             this.encryptButton.TabIndex = 0;
@@ -83,17 +85,17 @@
             // 
             this.sourceDataTextBox.Location = new System.Drawing.Point(12, 107);
             this.sourceDataTextBox.Name = "sourceDataTextBox";
-            this.sourceDataTextBox.Size = new System.Drawing.Size(468, 73);
+            this.sourceDataTextBox.Size = new System.Drawing.Size(468, 45);
             this.sourceDataTextBox.TabIndex = 4;
             this.sourceDataTextBox.Text = "";
             // 
-            // resultTextBox
+            // encryptedTextBox
             // 
-            this.resultTextBox.Location = new System.Drawing.Point(12, 200);
-            this.resultTextBox.Name = "resultTextBox";
-            this.resultTextBox.Size = new System.Drawing.Size(468, 73);
-            this.resultTextBox.TabIndex = 5;
-            this.resultTextBox.Text = "";
+            this.encryptedTextBox.Location = new System.Drawing.Point(12, 200);
+            this.encryptedTextBox.Name = "encryptedTextBox";
+            this.encryptedTextBox.Size = new System.Drawing.Size(468, 48);
+            this.encryptedTextBox.TabIndex = 5;
+            this.encryptedTextBox.Text = "";
             // 
             // label1
             // 
@@ -109,28 +111,48 @@
             this.label2.AutoSize = true;
             this.label2.Location = new System.Drawing.Point(12, 183);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(59, 13);
+            this.label2.Size = new System.Drawing.Size(140, 13);
             this.label2.TabIndex = 7;
-            this.label2.Text = "Результат";
+            this.label2.Text = "Зашифрованное значение";
             // 
-            // decryptButton
+            // button1
             // 
-            this.decryptButton.Location = new System.Drawing.Point(382, 63);
-            this.decryptButton.Name = "decryptButton";
-            this.decryptButton.Size = new System.Drawing.Size(98, 23);
-            this.decryptButton.TabIndex = 8;
-            this.decryptButton.Text = "Расшифровать";
-            this.decryptButton.UseVisualStyleBackColor = true;
+            this.button1.Location = new System.Drawing.Point(367, 63);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(113, 23);
+            this.button1.TabIndex = 9;
+            this.button1.Text = "Генерация ключей";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
+            // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(12, 254);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(146, 13);
+            this.label3.TabIndex = 11;
+            this.label3.Text = "Расшифрованное значение";
+            // 
+            // decryptedTextBox
+            // 
+            this.decryptedTextBox.Location = new System.Drawing.Point(12, 271);
+            this.decryptedTextBox.Name = "decryptedTextBox";
+            this.decryptedTextBox.Size = new System.Drawing.Size(468, 48);
+            this.decryptedTextBox.TabIndex = 10;
+            this.decryptedTextBox.Text = "";
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(492, 284);
-            this.Controls.Add(this.decryptButton);
+            this.ClientSize = new System.Drawing.Size(492, 325);
+            this.Controls.Add(this.label3);
+            this.Controls.Add(this.decryptedTextBox);
+            this.Controls.Add(this.button1);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
-            this.Controls.Add(this.resultTextBox);
+            this.Controls.Add(this.encryptedTextBox);
             this.Controls.Add(this.sourceDataTextBox);
             this.Controls.Add(this.keyInputTextBox);
             this.Controls.Add(this.manualKeyGenerationRadio);
@@ -150,10 +172,12 @@
         private System.Windows.Forms.RadioButton manualKeyGenerationRadio;
         private System.Windows.Forms.TextBox keyInputTextBox;
         private System.Windows.Forms.RichTextBox sourceDataTextBox;
-        private System.Windows.Forms.RichTextBox resultTextBox;
+        private System.Windows.Forms.RichTextBox encryptedTextBox;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.Button decryptButton;
+        private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.RichTextBox decryptedTextBox;
     }
 }
 
